@@ -17,7 +17,7 @@ BOLD='\033[1m'
 NC='\033[0m'
 
 step=0
-total=12
+total=14
 
 banner() {
   step=$((step + 1))
@@ -75,7 +75,59 @@ sudo apt install -y curl wget git unzip build-essential
 ok "Ferramentas básicas instaladas"
 
 # ============================================================
-# 3. Zsh
+# 3. Identidade Git (nome + email)
+# ============================================================
+banner "Configurando identidade Git"
+
+GIT_NAME=$(git config --global user.name 2>/dev/null || true)
+GIT_EMAIL=$(git config --global user.email 2>/dev/null || true)
+
+if [ -n "$GIT_NAME" ] && [ -n "$GIT_EMAIL" ]; then
+  ok "Git: $GIT_NAME <$GIT_EMAIL>"
+else
+  echo -e "  ${CYAN}Preencha seus dados para commits:${NC}"
+  read -rp "  Seu nome: " GIT_NAME < /dev/tty
+  read -rp "  Seu email: " GIT_EMAIL < /dev/tty
+  git config --global user.name "$GIT_NAME"
+  git config --global user.email "$GIT_EMAIL"
+  ok "Git configurado: $GIT_NAME <$GIT_EMAIL>"
+fi
+
+# ============================================================
+# 4. Chave SSH (GitHub)
+# ============================================================
+banner "Gerando chave SSH"
+
+SSH_KEY="$HOME/.ssh/id_ed25519"
+if [ -f "$SSH_KEY.pub" ]; then
+  warn "Chave SSH já existe"
+  echo -e "  ${CYAN}$(cat "$SSH_KEY.pub")${NC}"
+else
+  GIT_EMAIL=$(git config --global user.email 2>/dev/null || echo "")
+  if [ -n "$GIT_EMAIL" ]; then
+    mkdir -p "$HOME/.ssh"
+    chmod 700 "$HOME/.ssh"
+    ssh-keygen -t ed25519 -C "$GIT_EMAIL" -f "$SSH_KEY" -N ""
+    eval "$(ssh-agent -s)" > /dev/null 2>&1
+    ssh-add "$SSH_KEY" 2>/dev/null
+
+    ok "Chave SSH gerada"
+    echo ""
+    echo -e "  ${YELLOW}┌─────────────────────────────────────────────────────┐${NC}"
+    echo -e "  ${YELLOW}│  Copie a chave abaixo e adicione no GitHub:         │${NC}"
+    echo -e "  ${YELLOW}│  https://github.com/settings/ssh/new               │${NC}"
+    echo -e "  ${YELLOW}└─────────────────────────────────────────────────────┘${NC}"
+    echo ""
+    echo -e "  ${CYAN}$(cat "$SSH_KEY.pub")${NC}"
+    echo ""
+  else
+    warn "Email do Git nao configurado — pule e gere a chave depois com:"
+    echo "    ssh-keygen -t ed25519 -C \"seu@email.com\""
+  fi
+fi
+
+# ============================================================
+# 5. Zsh
 # ============================================================
 banner "Instalando Zsh"
 if command -v zsh &>/dev/null; then
@@ -91,7 +143,7 @@ else
 fi
 
 # ============================================================
-# 4. Oh My Zsh
+# 6. Oh My Zsh
 # ============================================================
 banner "Instalando Oh My Zsh"
 if [ -d "$HOME/.oh-my-zsh" ]; then
@@ -102,7 +154,7 @@ fi
 ok "Oh My Zsh instalado"
 
 # ============================================================
-# 5. Powerlevel10k
+# 7. Powerlevel10k
 # ============================================================
 banner "Instalando Powerlevel10k"
 P10K_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
@@ -115,7 +167,7 @@ sed -i 's/ZSH_THEME="robbyrussell"/ZSH_THEME="powerlevel10k\/powerlevel10k"/' "$
 ok "Powerlevel10k instalado"
 
 # ============================================================
-# 6. Plugins Zsh (autosuggestions + syntax-highlighting)
+# 8. Plugins Zsh (autosuggestions + syntax-highlighting)
 # ============================================================
 banner "Instalando plugins Zsh"
 ZSH_CUSTOM_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
@@ -132,7 +184,7 @@ sed -i 's/plugins=(git)/plugins=(git zsh-autosuggestions zsh-syntax-highlighting
 ok "Plugins instalados e ativados"
 
 # ============================================================
-# 7. PATH extras no .zshrc
+# 9. PATH extras no .zshrc
 # ============================================================
 banner "Configurando PATH"
 PATH_LINE='export PATH="$HOME/.local/bin:/snap/bin:$PATH"'
@@ -148,7 +200,7 @@ else
 fi
 
 # ============================================================
-# 8. tmux
+# 10. tmux
 # ============================================================
 banner "Instalando tmux"
 if command -v tmux &>/dev/null; then
@@ -164,7 +216,7 @@ else
 fi
 
 # ============================================================
-# 9. GitHub CLI
+# 11. GitHub CLI
 # ============================================================
 banner "Instalando GitHub CLI"
 if command -v gh &>/dev/null; then
@@ -179,7 +231,7 @@ else
 fi
 
 # ============================================================
-# 10. Node.js (via nvm)
+# 12. Node.js (via nvm)
 # ============================================================
 banner "Instalando Node.js (via nvm)"
 export NVM_DIR="$HOME/.nvm"
@@ -200,7 +252,7 @@ else
 fi
 
 # ============================================================
-# 11. Claude Code
+# 13. Claude Code
 # ============================================================
 banner "Instalando Claude Code"
 if command -v claude &>/dev/null; then
@@ -211,7 +263,7 @@ else
 fi
 
 # ============================================================
-# 12. FlowForge
+# 14. FlowForge
 # ============================================================
 banner "Instalando FlowForge"
 if command -v flowforge &>/dev/null; then
@@ -233,22 +285,17 @@ echo "  ██║  ██║██║   ██║██║╚██╗██║�
 echo "  ██████╔╝╚██████╔╝██║ ╚████║███████╗██╗"
 echo "  ╚═════╝  ╚═════╝ ╚═╝  ╚═══╝╚══════╝╚═╝"
 echo -e "${NC}"
-echo "  Próximos passos:"
+echo "  Proximos passos:"
 echo ""
 echo -e "  ${YELLOW}1.${NC} Feche esta janela e abra o Ubuntu de novo"
-echo -e "  ${YELLOW}2.${NC} O wizard do Powerlevel10k vai abrir — siga as instruções"
-echo -e "  ${YELLOW}3.${NC} Faça login no GitHub:"
+echo -e "  ${YELLOW}2.${NC} O wizard do Powerlevel10k vai abrir — siga as instrucoes"
+echo -e "  ${YELLOW}3.${NC} Adicione sua chave SSH no GitHub (se ainda nao fez):"
+echo "        https://github.com/settings/ssh/new"
+echo -e "  ${YELLOW}4.${NC} Faca login no GitHub CLI:"
 echo "        gh auth login"
-echo -e "  ${YELLOW}4.${NC} Rode o doctor:"
+echo -e "  ${YELLOW}5.${NC} Rode o doctor:"
 echo "        flowforge doctor"
 echo ""
-echo -e "  ${YELLOW}FONTES:${NC} Instale a MesloLGS NF no WINDOWS (não no WSL)."
-echo "  Baixe as 4 .ttf de:"
-echo "  https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Regular.ttf"
-echo "  https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold.ttf"
-echo "  https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Italic.ttf"
-echo "  https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold%20Italic.ttf"
-echo ""
-echo "  Clique direito → 'Instalar para todos os usuários'"
-echo "  Configure no Windows Terminal: Aparência → Fonte → MesloLGS NF"
+echo -e "  ${YELLOW}FONTE:${NC} Configure no Windows Terminal:"
+echo "    Configuracoes -> Ubuntu -> Aparencia -> Fonte -> MesloLGS NF"
 echo ""
