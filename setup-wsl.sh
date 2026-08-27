@@ -99,9 +99,10 @@ fi
 banner "Gerando chave SSH"
 
 SSH_KEY="$HOME/.ssh/id_ed25519"
+SSH_PUB=""
 if [ -f "$SSH_KEY.pub" ]; then
   warn "Chave SSH já existe"
-  echo -e "  ${CYAN}$(cat "$SSH_KEY.pub")${NC}"
+  SSH_PUB=$(cat "$SSH_KEY.pub")
 else
   GIT_EMAIL=$(git config --global user.email 2>/dev/null || echo "")
   if [ -n "$GIT_EMAIL" ]; then
@@ -110,18 +111,10 @@ else
     ssh-keygen -t ed25519 -C "$GIT_EMAIL" -f "$SSH_KEY" -N ""
     eval "$(ssh-agent -s)" > /dev/null 2>&1
     ssh-add "$SSH_KEY" 2>/dev/null
-
+    SSH_PUB=$(cat "$SSH_KEY.pub")
     ok "Chave SSH gerada"
-    echo ""
-    echo -e "  ${YELLOW}┌─────────────────────────────────────────────────────┐${NC}"
-    echo -e "  ${YELLOW}│  Copie a chave abaixo e adicione no GitHub:         │${NC}"
-    echo -e "  ${YELLOW}│  https://github.com/settings/ssh/new               │${NC}"
-    echo -e "  ${YELLOW}└─────────────────────────────────────────────────────┘${NC}"
-    echo ""
-    echo -e "  ${CYAN}$(cat "$SSH_KEY.pub")${NC}"
-    echo ""
   else
-    warn "Email do Git nao configurado — pule e gere a chave depois com:"
+    warn "Email do Git nao configurado — gere a chave depois com:"
     echo "    ssh-keygen -t ed25519 -C \"seu@email.com\""
   fi
 fi
@@ -289,8 +282,16 @@ echo "  Proximos passos:"
 echo ""
 echo -e "  ${YELLOW}1.${NC} Feche esta janela e abra o Ubuntu de novo"
 echo -e "  ${YELLOW}2.${NC} O wizard do Powerlevel10k vai abrir — siga as instrucoes"
-echo -e "  ${YELLOW}3.${NC} Adicione sua chave SSH no GitHub (se ainda nao fez):"
+echo -e "  ${YELLOW}3.${NC} Adicione sua chave SSH no GitHub:"
 echo "        https://github.com/settings/ssh/new"
+if [ -n "$SSH_PUB" ]; then
+  echo ""
+  echo -e "  ${YELLOW}┌─────────────────────────────────────────────────────┐${NC}"
+  echo -e "  ${YELLOW}│  Sua chave SSH (copie e cole no GitHub):            │${NC}"
+  echo -e "  ${YELLOW}└─────────────────────────────────────────────────────┘${NC}"
+  echo -e "  ${CYAN}${SSH_PUB}${NC}"
+  echo ""
+fi
 echo -e "  ${YELLOW}4.${NC} Faca login no GitHub CLI:"
 echo "        gh auth login"
 echo -e "  ${YELLOW}5.${NC} Rode o doctor:"

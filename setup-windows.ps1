@@ -135,8 +135,9 @@ if ($hasWinget) {
 # ============================================================
 Write-Step 4 $total "Instalando fontes MesloLGS NF"
 
-$fontDir = "$env:LOCALAPPDATA\Microsoft\Windows\Fonts"
-$fontsInstalled = Test-Path "$fontDir\MesloLGS NF Regular.ttf"
+$sysFontDir = "$env:SystemRoot\Fonts"
+$regPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"
+$fontsInstalled = Test-Path "$sysFontDir\MesloLGS NF Regular.ttf"
 
 if ($fontsInstalled) {
     Write-Host "⚠  Fontes MesloLGS NF já instaladas" -ForegroundColor Yellow
@@ -159,14 +160,16 @@ if ($fontsInstalled) {
         Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
     }
 
-    $shellApp = New-Object -ComObject Shell.Application
-    $fontsFolder = $shellApp.Namespace(0x14)
     foreach ($font in $fontNames) {
-        $fontsFolder.CopyHere("$tempDir\$font", 0x10)
+        $src = "$tempDir\$font"
+        Copy-Item $src -Destination "$sysFontDir\$font" -Force
+        $fontTitle = $font -replace '\.ttf$', ' (TrueType)'
+        New-ItemProperty -Path $regPath -Name $fontTitle -Value $font -PropertyType String -Force | Out-Null
+        Write-Host "  ✔  $font" -ForegroundColor Green
     }
 
     Remove-Item -Recurse -Force $tempDir
-    Write-Host "✔  Fontes instaladas" -ForegroundColor Green
+    Write-Host "✔  Fontes instaladas em $sysFontDir e registradas no sistema" -ForegroundColor Green
 }
 
 # ============================================================
