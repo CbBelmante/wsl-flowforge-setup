@@ -1,8 +1,7 @@
 # ============================================================
-# WSL2 Dev Setup — Parte 1: Windows
+# FlowForge Setup — Parte 1: Windows
 # Roda no PowerShell COMO ADMINISTRADOR
-# Uso: clique direito no arquivo → "Executar com PowerShell"
-#      ou: powershell -ExecutionPolicy Bypass -File setup-windows.ps1
+# One-liner: irm https://raw.githubusercontent.com/CbBelmante/wsl-flowforge-setup/master/setup-windows.ps1 | iex
 # ============================================================
 
 $ErrorActionPreference = "Stop"
@@ -171,30 +170,22 @@ if ($fontsInstalled) {
 }
 
 # ============================================================
-# 5. Copiar setup-wsl.sh pro WSL
+# 5. Baixar setup-wsl.sh pro WSL
 # ============================================================
-Write-Step 5 $total "Preparando script de setup interno"
+Write-Step 5 $total "Baixando script de setup pro WSL"
 
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$wslScript = Join-Path $scriptDir "setup-wsl.sh"
+$repoBase = "https://raw.githubusercontent.com/CbBelmante/wsl-flowforge-setup/master"
 
-if (Test-Path $wslScript) {
-    if (-not $needsReboot) {
-        $wslHome = (wsl -- bash -c 'echo $HOME' 2>$null).Trim()
-        if ($wslHome) {
-            $wslDest = wsl -- wslpath -u ($wslScript -replace '\\', '/')
-            wsl -- cp "$wslDest" "$wslHome/setup-wsl.sh"
-            wsl -- chmod +x "$wslHome/setup-wsl.sh"
-            Write-Host "✔  setup-wsl.sh copiado para $wslHome/" -ForegroundColor Green
-        } else {
-            Write-Host "⚠  Não foi possível copiar — copie manualmente após o reboot" -ForegroundColor Yellow
-        }
-    } else {
-        Write-Host "⚠  WSL precisa de reboot primeiro — copie manualmente depois" -ForegroundColor Yellow
+if (-not $needsReboot) {
+    try {
+        wsl -- bash -c "curl -fsSL $repoBase/setup-wsl.sh -o ~/setup-wsl.sh && chmod +x ~/setup-wsl.sh"
+        Write-Host "✔  setup-wsl.sh baixado para ~/setup-wsl.sh dentro do WSL" -ForegroundColor Green
+    } catch {
+        Write-Host "⚠  Nao foi possivel baixar agora — rode o comando abaixo dentro do Ubuntu depois" -ForegroundColor Yellow
     }
 } else {
-    Write-Host "⚠  setup-wsl.sh não encontrado na mesma pasta" -ForegroundColor Yellow
-    Write-Host "   Coloque os dois scripts na mesma pasta e rode de novo" -ForegroundColor Yellow
+    Write-Host "⚠  WSL ainda nao esta pronto (precisa de reboot primeiro)" -ForegroundColor Yellow
+    Write-Host "  Apos o reboot, o comando abaixo baixa e roda tudo automaticamente" -ForegroundColor White
 }
 
 # ============================================================
@@ -220,16 +211,16 @@ Write-Host "  Próximos passos:" -ForegroundColor Yellow
 Write-Host ""
 if ($needsReboot) {
     Write-Host "  1. Reinicie o PC" -ForegroundColor White
-    Write-Host "  2. Abra 'Ubuntu' no menu Iniciar (vai pedir pra criar usuário)" -ForegroundColor White
+    Write-Host "  2. Abra 'Ubuntu' no menu Iniciar (vai pedir pra criar usuario)" -ForegroundColor White
     Write-Host "  3. Dentro do Ubuntu, rode:" -ForegroundColor White
 } else {
-    Write-Host "  1. Abra 'Ubuntu' no menu Iniciar (ou Windows Terminal → Ubuntu)" -ForegroundColor White
-    Write-Host "  2. Dentro do Ubuntu, rode:" -ForegroundColor White
+    Write-Host "  1. Abra 'Ubuntu' no menu Iniciar (ou Windows Terminal -> Ubuntu)" -ForegroundColor White
+    Write-Host "  2. Rode:" -ForegroundColor White
 }
 Write-Host ""
-Write-Host "        bash ~/setup-wsl.sh" -ForegroundColor Cyan
+Write-Host "     curl -sL https://raw.githubusercontent.com/CbBelmante/wsl-flowforge-setup/master/bootstrap.sh | bash" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  Depois configure no Windows Terminal:" -ForegroundColor Yellow
-Write-Host "    Configurações → Ubuntu → Aparência → Fonte → MesloLGS NF" -ForegroundColor White
+Write-Host "    Configuracoes -> Ubuntu -> Aparencia -> Fonte -> MesloLGS NF" -ForegroundColor White
 Write-Host ""
 Read-Host "Aperte Enter pra sair"

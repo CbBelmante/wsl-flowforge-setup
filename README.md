@@ -22,36 +22,24 @@ Setup automatizado para montar um ambiente de desenvolvimento completo no Window
 
 ## Como usar
 
-### 1. No Windows
+### 1. No Windows (PowerShell como Administrador)
 
-Baixe os dois arquivos e coloque na mesma pasta. Depois:
+```powershell
+irm https://raw.githubusercontent.com/CbBelmante/wsl-flowforge-setup/master/setup-windows.ps1 | iex
+```
 
-1. Clique direito no PowerShell → **Executar como administrador**
-2. Navegue ate a pasta:
-   ```powershell
-   cd C:\Users\SeuUsuario\Downloads
-   ```
-3. Rode:
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File setup-windows.ps1
-   ```
-4. **Reinicie o PC** quando pedir
+> Instala WSL2 + Ubuntu, Windows Terminal, fontes e baixa o script pro WSL automaticamente.
+> Reinicie o PC quando pedir.
 
 ### 2. Dentro do Ubuntu/WSL
 
 Apos o reboot, abra **Ubuntu** no menu Iniciar (vai pedir pra criar usuario e senha na primeira vez).
 
-Depois rode:
-
 ```bash
 curl -sL https://raw.githubusercontent.com/CbBelmante/wsl-flowforge-setup/master/bootstrap.sh | bash
 ```
 
-Ou se o PowerShell ja copiou o script:
-
-```bash
-bash ~/setup-wsl.sh
-```
+> Instala zsh, p10k, plugins, tmux, Node.js, gh, Claude Code e FlowForge automaticamente.
 
 ### 3. Configurar fonte no Windows Terminal
 
