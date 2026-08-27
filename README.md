@@ -44,13 +44,12 @@ Apos o reboot, abra **Ubuntu** no menu Iniciar (vai pedir pra criar usuario e se
 Depois rode:
 
 ```bash
-bash ~/setup-wsl.sh
+curl -sL https://raw.githubusercontent.com/CbBelmante/wsl-flowforge-setup/master/bootstrap.sh | bash
 ```
 
-Se o script nao estiver no `~/`, baixe manualmente:
+Ou se o PowerShell ja copiou o script:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/CbBelmante/wsl-flowforge-setup/master/setup-wsl.sh -o ~/setup-wsl.sh
 bash ~/setup-wsl.sh
 ```
 
