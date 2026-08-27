@@ -82,6 +82,19 @@ git config --global user.email "seu@email.com"
 - Windows 10 (build 19041+) ou Windows 11
 - PowerShell como Administrador (para a parte 1)
 - Conexao com a internet
+- **Virtualizacao habilitada na BIOS** (o script verifica automaticamente)
+
+### Virtualizacao na BIOS
+
+O WSL2 precisa de virtualizacao de hardware habilitada. A maioria dos PCs ja vem com isso ligado, mas se o script avisar que nao esta ativo:
+
+1. Reinicie o PC e entre na BIOS (geralmente **F2**, **F10**, **Del** ou **Esc** ao ligar)
+2. Procure a opcao:
+   - **Intel**: `Intel Virtualization Technology (VT-x)` → **Enabled**
+   - **AMD**: `SVM Mode` ou `AMD-V` → **Enabled**
+3. Locais comuns: `Advanced → CPU Configuration`, `Security → Virtualization`, ou `BIOS Features`
+4. Salve com **F10** e reinicie
+5. Rode o script de novo
 
 ## Rodar de novo
 

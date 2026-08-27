@@ -44,12 +44,55 @@ Write-Host "  Vai instalar: WSL2, Ubuntu, Windows Terminal, fontes MesloLGS NF"
 Write-Host ""
 Read-Host "Aperta Enter pra começar (Ctrl+C pra cancelar)"
 
-$total = 5
+$total = 6
 
 # ============================================================
-# 1. Instalar WSL2 + Ubuntu
+# 1. Verificar virtualizacao
 # ============================================================
-Write-Step 1 $total "Instalando WSL2 + Ubuntu"
+Write-Step 1 $total "Verificando virtualizacao do processador"
+
+$virtEnabled = $false
+try {
+    $cpu = Get-CimInstance -ClassName Win32_Processor
+    if ($cpu.VirtualizationFirmwareEnabled) {
+        $virtEnabled = $true
+    }
+} catch {}
+
+if ($virtEnabled) {
+    Write-Host "✔  Virtualizacao habilitada no processador" -ForegroundColor Green
+} else {
+    Write-Host ""
+    Write-Host "✖  VIRTUALIZACAO NAO DETECTADA!" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "  O WSL2 precisa de virtualizacao habilitada na BIOS." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  Como habilitar:" -ForegroundColor Cyan
+    Write-Host "    1. Reinicie o PC e entre na BIOS (geralmente F2, F10, Del ou Esc ao ligar)" -ForegroundColor White
+    Write-Host "    2. Procure uma dessas opcoes:" -ForegroundColor White
+    Write-Host "       - Intel: 'Intel Virtualization Technology (VT-x)' → Enabled" -ForegroundColor White
+    Write-Host "       - AMD:   'SVM Mode' ou 'AMD-V' → Enabled" -ForegroundColor White
+    Write-Host "    3. Salve (F10) e reinicie" -ForegroundColor White
+    Write-Host "    4. Rode este script de novo" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  Locais comuns na BIOS:" -ForegroundColor Cyan
+    Write-Host "    - Advanced → CPU Configuration" -ForegroundColor White
+    Write-Host "    - Security → Virtualization" -ForegroundColor White
+    Write-Host "    - BIOS Features → Virtualization" -ForegroundColor White
+    Write-Host ""
+    $continuar = Read-Host "Quer continuar mesmo assim? (s/N)"
+    if ($continuar -ne "s" -and $continuar -ne "S") {
+        Write-Host "  Abortado. Habilite a virtualizacao e rode de novo." -ForegroundColor Yellow
+        Read-Host "Aperte Enter pra sair"
+        exit 1
+    }
+    Write-Host "⚠  Continuando sem virtualizacao — o WSL2 pode nao funcionar" -ForegroundColor Yellow
+}
+
+# ============================================================
+# 2. Instalar WSL2 + Ubuntu
+# ============================================================
+Write-Step 2 $total "Instalando WSL2 + Ubuntu"
 
 $wslInstalled = $false
 try {
@@ -70,9 +113,9 @@ if (-not $wslInstalled) {
 }
 
 # ============================================================
-# 2. Windows Terminal (via winget)
+# 3. Windows Terminal (via winget)
 # ============================================================
-Write-Step 2 $total "Verificando Windows Terminal"
+Write-Step 3 $total "Verificando Windows Terminal"
 
 $hasWinget = Get-Command winget -ErrorAction SilentlyContinue
 if ($hasWinget) {
@@ -89,9 +132,9 @@ if ($hasWinget) {
 }
 
 # ============================================================
-# 3. Fontes MesloLGS NF
+# 4. Fontes MesloLGS NF
 # ============================================================
-Write-Step 3 $total "Instalando fontes MesloLGS NF"
+Write-Step 4 $total "Instalando fontes MesloLGS NF"
 
 $fontDir = "$env:LOCALAPPDATA\Microsoft\Windows\Fonts"
 $fontsInstalled = Test-Path "$fontDir\MesloLGS NF Regular.ttf"
@@ -128,9 +171,9 @@ if ($fontsInstalled) {
 }
 
 # ============================================================
-# 4. Copiar setup-wsl.sh pro WSL
+# 5. Copiar setup-wsl.sh pro WSL
 # ============================================================
-Write-Step 4 $total "Preparando script de setup interno"
+Write-Step 5 $total "Preparando script de setup interno"
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $wslScript = Join-Path $scriptDir "setup-wsl.sh"
@@ -155,9 +198,9 @@ if (Test-Path $wslScript) {
 }
 
 # ============================================================
-# 5. Instruções finais
+# 6. Instruções finais
 # ============================================================
-Write-Step 5 $total "Concluído!"
+Write-Step 6 $total "Concluído!"
 
 Write-Host ""
 Write-Host "  ██████╗  ██████╗ ███╗   ██╗███████╗██╗" -ForegroundColor Green
