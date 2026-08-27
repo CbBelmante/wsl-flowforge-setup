@@ -1,5 +1,0 @@
-# FlowForge canonical billing config — auto-established (#1940).
-# active_dev_id is the per-developer billing identity used by the
-# token-capture Stop hook and team-billing aggregators. Edit to
-# rename; delete the line to force re-derivation on next run.
-active_dev_id = "cbbelmante"
