@@ -1,18 +1,22 @@
 # WSL FlowForge Setup
 
-Setup automatizado para montar um ambiente de desenvolvimento completo no Windows usando WSL2 + Ubuntu.
+Setup automatizado para montar um ambiente de desenvolvimento completo no Windows usando WSL2 + Ubuntu. Dois comandos, zero configuracao manual.
 
 ## O que instala
 
 ### Parte Windows (`setup-windows.ps1`)
+- Verifica virtualizacao na BIOS (com instrucoes se desativada)
 - WSL2 + Ubuntu
 - Windows Terminal (via winget)
-- Fontes MesloLGS NF (para o Powerlevel10k funcionar bonito)
+- Fontes MesloLGS NF (instaladas no sistema + registradas)
+- Configura fonte automaticamente no Windows Terminal
 
 ### Parte WSL (`setup-wsl.sh`)
 - Ferramentas basicas (curl, wget, git, unzip, build-essential)
+- Identidade Git (pede nome + email)
+- Chave SSH ed25519 (gera e mostra pra copiar no GitHub)
 - Zsh como shell padrao
-- Oh My Zsh + Powerlevel10k (tema)
+- Oh My Zsh + Powerlevel10k (tema rainbow, ja configurado sem wizard)
 - Plugins: zsh-autosuggestions, zsh-syntax-highlighting
 - tmux
 - Node.js (via nvm)
@@ -28,7 +32,7 @@ Setup automatizado para montar um ambiente de desenvolvimento completo no Window
 irm https://raw.githubusercontent.com/CbBelmante/wsl-flowforge-setup/master/setup-windows.ps1 | iex
 ```
 
-> Instala WSL2 + Ubuntu, Windows Terminal, fontes e baixa o script pro WSL automaticamente.
+> Instala WSL2 + Ubuntu, Windows Terminal, fontes e configura tudo automaticamente.
 > Reinicie o PC quando pedir.
 
 ### 2. Dentro do Ubuntu/WSL
@@ -39,30 +43,19 @@ Apos o reboot, abra **Ubuntu** no menu Iniciar (vai pedir pra criar usuario e se
 curl -sL https://raw.githubusercontent.com/CbBelmante/wsl-flowforge-setup/master/bootstrap.sh | bash
 ```
 
-> Instala zsh, p10k, plugins, tmux, Node.js, gh, Claude Code e FlowForge automaticamente.
+> Configura git, gera chave SSH, instala zsh + p10k + Node.js + Claude Code + FlowForge.
+> A chave SSH aparece no final — copie e adicione em https://github.com/settings/ssh/new
 
-### 3. Configurar fonte no Windows Terminal
-
-1. Abra **Windows Terminal**
-2. Configuracoes → Perfil **Ubuntu** → **Aparencia**
-3. Fonte → **MesloLGS NF**
-4. Tamanho → **11** (recomendado)
-5. Salvar
-
-## Proximos passos (manual)
-
-Apos o setup terminar:
+### 3. Pos-setup
 
 ```bash
-# Login no GitHub
+# Adicione a chave SSH no GitHub (link acima)
+
+# Login no GitHub CLI
 gh auth login
 
 # Verificar FlowForge
 flowforge doctor
-
-# Configurar git
-git config --global user.name "Seu Nome"
-git config --global user.email "seu@email.com"
 ```
 
 ## Requisitos
