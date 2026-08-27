@@ -12,6 +12,8 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
 NC='\033[0m'
 
 step=0
@@ -36,13 +38,25 @@ if ! grep -qi microsoft /proc/version 2>/dev/null; then
 fi
 
 echo ""
-echo -e "${GREEN}╔═══════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║   WSL2 Dev Setup — Instalação Automática         ║${NC}"
-echo -e "${GREEN}║   Instala tudo que você precisa de uma vez        ║${NC}"
-echo -e "${GREEN}╚═══════════════════════════════════════════════════╝${NC}"
+echo -e "${CYAN}${BOLD}"
+echo "  ███████╗██╗      ██████╗ ██╗    ██╗███████╗ ██████╗ ██████╗  ██████╗ ███████╗"
+echo "  ██╔════╝██║     ██╔═══██╗██║    ██║██╔════╝██╔═══██╗██╔══██╗██╔════╝ ██╔════╝"
+echo "  █████╗  ██║     ██║   ██║██║ █╗ ██║█████╗  ██║   ██║██████╔╝██║  ███╗█████╗  "
+echo "  ██╔══╝  ██║     ██║   ██║██║███╗██║██╔══╝  ██║   ██║██╔══██╗██║   ██║██╔══╝  "
+echo "  ██║     ███████╗╚██████╔╝╚███╔███╔╝██║     ╚██████╔╝██║  ██║╚██████╔╝███████╗"
+echo "  ╚═╝     ╚══════╝ ╚═════╝  ╚══╝╚══╝ ╚═╝      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝"
 echo ""
-echo "Vai instalar: apt tools, zsh, oh-my-zsh, powerlevel10k,"
-echo "plugins zsh, tmux, Node.js, GitHub CLI, Claude Code, FlowForge"
+echo "  ███████╗███████╗████████╗██╗   ██╗██████╗ "
+echo "  ██╔════╝██╔════╝╚══██╔══╝██║   ██║██╔══██╗"
+echo "  ███████╗█████╗     ██║   ██║   ██║██████╔╝"
+echo "  ╚════██║██╔══╝     ██║   ██║   ██║██╔═══╝ "
+echo "  ███████║███████╗   ██║   ╚██████╔╝██║     "
+echo "  ╚══════╝╚══════╝   ╚═╝    ╚═════╝ ╚═╝     "
+echo -e "${NC}"
+echo -e "  ${BLUE}WSL2 Dev Environment — One-Shot Installer${NC}"
+echo ""
+echo "  Vai instalar: apt tools, zsh, oh-my-zsh, powerlevel10k,"
+echo "  plugins zsh, tmux, Node.js, GitHub CLI, Claude Code, FlowForge"
 echo ""
 read -rp "Aperta Enter pra começar (Ctrl+C pra cancelar)... " < /dev/tty
 
@@ -211,11 +225,15 @@ fi
 # Resumo final
 # ============================================================
 echo ""
-echo -e "${GREEN}╔═══════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║   Setup concluído!                                ║${NC}"
-echo -e "${GREEN}╚═══════════════════════════════════════════════════╝${NC}"
-echo ""
-echo "Próximos passos:"
+echo -e "${GREEN}${BOLD}"
+echo "  ██████╗  ██████╗ ███╗   ██╗███████╗██╗"
+echo "  ██╔══██╗██╔═══██╗████╗  ██║██╔════╝██║"
+echo "  ██║  ██║██║   ██║██╔██╗ ██║█████╗  ██║"
+echo "  ██║  ██║██║   ██║██║╚██╗██║██╔══╝  ╚═╝"
+echo "  ██████╔╝╚██████╔╝██║ ╚████║███████╗██╗"
+echo "  ╚═════╝  ╚═════╝ ╚═╝  ╚═══╝╚══════╝╚═╝"
+echo -e "${NC}"
+echo "  Próximos passos:"
 echo ""
 echo -e "  ${YELLOW}1.${NC} Feche esta janela e abra o Ubuntu de novo"
 echo -e "  ${YELLOW}2.${NC} O wizard do Powerlevel10k vai abrir — siga as instruções"

@@ -24,12 +24,23 @@ if (-not $isAdmin) {
 }
 
 Write-Host ""
-Write-Host "╔═══════════════════════════════════════════════════╗" -ForegroundColor Green
-Write-Host "║   WSL2 Dev Setup — Parte 1 (Windows)             ║" -ForegroundColor Green
-Write-Host "║   Instala WSL2 + Ubuntu + Fontes + WinGet apps   ║" -ForegroundColor Green
-Write-Host "╚═══════════════════════════════════════════════════╝" -ForegroundColor Green
+Write-Host "  ███████╗██╗      ██████╗ ██╗    ██╗███████╗ ██████╗ ██████╗  ██████╗ ███████╗" -ForegroundColor Cyan
+Write-Host "  ██╔════╝██║     ██╔═══██╗██║    ██║██╔════╝██╔═══██╗██╔══██╗██╔════╝ ██╔════╝" -ForegroundColor Cyan
+Write-Host "  █████╗  ██║     ██║   ██║██║ █╗ ██║█████╗  ██║   ██║██████╔╝██║  ███╗█████╗  " -ForegroundColor Cyan
+Write-Host "  ██╔══╝  ██║     ██║   ██║██║███╗██║██╔══╝  ██║   ██║██╔══██╗██║   ██║██╔══╝  " -ForegroundColor Cyan
+Write-Host "  ██║     ███████╗╚██████╔╝╚███╔███╔╝██║     ╚██████╔╝██║  ██║╚██████╔╝███████╗" -ForegroundColor Cyan
+Write-Host "  ╚═╝     ╚══════╝ ╚═════╝  ╚══╝╚══╝ ╚═╝      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Vai instalar: WSL2, Ubuntu, Windows Terminal, fontes MesloLGS NF"
+Write-Host "  ███████╗███████╗████████╗██╗   ██╗██████╗ " -ForegroundColor Cyan
+Write-Host "  ██╔════╝██╔════╝╚══██╔══╝██║   ██║██╔══██╗" -ForegroundColor Cyan
+Write-Host "  ███████╗█████╗     ██║   ██║   ██║██████╔╝" -ForegroundColor Cyan
+Write-Host "  ╚════██║██╔══╝     ██║   ██║   ██║██╔═══╝ " -ForegroundColor Cyan
+Write-Host "  ███████║███████╗   ██║   ╚██████╔╝██║     " -ForegroundColor Cyan
+Write-Host "  ╚══════╝╚══════╝   ╚═╝    ╚═════╝ ╚═╝     " -ForegroundColor Cyan
+Write-Host ""
+Write-Host "  WSL2 Dev Environment — Parte 1 (Windows)" -ForegroundColor Blue
+Write-Host ""
+Write-Host "  Vai instalar: WSL2, Ubuntu, Windows Terminal, fontes MesloLGS NF"
 Write-Host ""
 Read-Host "Aperta Enter pra começar (Ctrl+C pra cancelar)"
 
@@ -149,9 +160,12 @@ if (Test-Path $wslScript) {
 Write-Step 5 $total "Concluído!"
 
 Write-Host ""
-Write-Host "╔═══════════════════════════════════════════════════╗" -ForegroundColor Green
-Write-Host "║   Parte 1 concluída!                              ║" -ForegroundColor Green
-Write-Host "╚═══════════════════════════════════════════════════╝" -ForegroundColor Green
+Write-Host "  ██████╗  ██████╗ ███╗   ██╗███████╗██╗" -ForegroundColor Green
+Write-Host "  ██╔══██╗██╔═══██╗████╗  ██║██╔════╝██║" -ForegroundColor Green
+Write-Host "  ██║  ██║██║   ██║██╔██╗ ██║█████╗  ██║" -ForegroundColor Green
+Write-Host "  ██║  ██║██║   ██║██║╚██╗██║██╔══╝  ╚═╝" -ForegroundColor Green
+Write-Host "  ██████╔╝╚██████╔╝██║ ╚████║███████╗██╗" -ForegroundColor Green
+Write-Host "  ╚═════╝  ╚═════╝ ╚═╝  ╚═══╝╚══════╝╚═╝" -ForegroundColor Green
 Write-Host ""
 
 if ($needsReboot) {
