@@ -43,7 +43,7 @@ Write-Host "  Vai instalar: WSL2, Ubuntu, Windows Terminal, fontes MesloLGS NF"
 Write-Host ""
 Read-Host "Aperta Enter pra começar (Ctrl+C pra cancelar)"
 
-$total = 6
+$total = 7
 
 # ============================================================
 # 1. Verificar virtualizacao
@@ -173,9 +173,50 @@ if ($fontsInstalled) {
 }
 
 # ============================================================
-# 5. Baixar setup-wsl.sh pro WSL
+# 5. Configurar fonte no Windows Terminal
 # ============================================================
-Write-Step 5 $total "Baixando script de setup pro WSL"
+Write-Step 5 $total "Configurando fonte no Windows Terminal"
+
+$wtSettingsPaths = @(
+    "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json",
+    "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminalPreview_8wekyb3d8bbwe\LocalState\settings.json",
+    "$env:LOCALAPPDATA\Microsoft\Windows Terminal\settings.json"
+)
+
+$wtSettings = $null
+foreach ($p in $wtSettingsPaths) {
+    if (Test-Path $p) { $wtSettings = $p; break }
+}
+
+if ($wtSettings) {
+    try {
+        $json = Get-Content $wtSettings -Raw | ConvertFrom-Json
+
+        if (-not $json.profiles.defaults) {
+            $json.profiles | Add-Member -NotePropertyName "defaults" -NotePropertyValue ([PSCustomObject]@{}) -Force
+        }
+
+        $fontObj = [PSCustomObject]@{ face = "MesloLGS NF"; size = 11 }
+        if ($json.profiles.defaults.PSObject.Properties["font"]) {
+            $json.profiles.defaults.font = $fontObj
+        } else {
+            $json.profiles.defaults | Add-Member -NotePropertyName "font" -NotePropertyValue $fontObj -Force
+        }
+
+        $json | ConvertTo-Json -Depth 20 | Set-Content $wtSettings -Encoding UTF8
+        Write-Host "✔  Fonte MesloLGS NF configurada no Windows Terminal" -ForegroundColor Green
+    } catch {
+        Write-Host "⚠  Nao foi possivel configurar automaticamente" -ForegroundColor Yellow
+        Write-Host "  Configure manualmente: Configuracoes -> Aparencia -> Fonte -> MesloLGS NF" -ForegroundColor White
+    }
+} else {
+    Write-Host "⚠  Windows Terminal nao encontrado — configure a fonte manualmente depois" -ForegroundColor Yellow
+}
+
+# ============================================================
+# 6. Baixar setup-wsl.sh pro WSL
+# ============================================================
+Write-Step 6 $total "Baixando script de setup pro WSL"
 
 $repoBase = "https://raw.githubusercontent.com/CbBelmante/wsl-flowforge-setup/master"
 
@@ -192,9 +233,9 @@ if (-not $needsReboot) {
 }
 
 # ============================================================
-# 6. Instruções finais
+# 7. Instruções finais
 # ============================================================
-Write-Step 6 $total "Concluído!"
+Write-Step 7 $total "Concluído!"
 
 Write-Host ""
 Write-Host "  ██████╗  ██████╗ ███╗   ██╗███████╗██╗" -ForegroundColor Green
@@ -222,8 +263,5 @@ if ($needsReboot) {
 }
 Write-Host ""
 Write-Host "     curl -sL https://raw.githubusercontent.com/CbBelmante/wsl-flowforge-setup/master/bootstrap.sh | bash" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "  Depois configure no Windows Terminal:" -ForegroundColor Yellow
-Write-Host "    Configuracoes -> Ubuntu -> Aparencia -> Fonte -> MesloLGS NF" -ForegroundColor White
 Write-Host ""
 Read-Host "Aperte Enter pra sair"

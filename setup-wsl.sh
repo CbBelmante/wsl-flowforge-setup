@@ -157,7 +157,18 @@ else
   git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$P10K_DIR"
 fi
 sed -i 's/ZSH_THEME="robbyrussell"/ZSH_THEME="powerlevel10k\/powerlevel10k"/' "$HOME/.zshrc"
-ok "Powerlevel10k instalado"
+
+REPO_BASE="https://raw.githubusercontent.com/CbBelmante/wsl-flowforge-setup/master"
+if [ ! -f "$HOME/.p10k.zsh" ]; then
+  curl -fsSL "$REPO_BASE/.p10k.zsh" -o "$HOME/.p10k.zsh"
+  ok "Config p10k aplicada (rainbow + nerd fonts)"
+else
+  warn "Config p10k ja existe, mantendo a atual"
+fi
+if ! grep -qF 'p10k.zsh' "$HOME/.zshrc"; then
+  echo '[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh' >> "$HOME/.zshrc"
+fi
+ok "Powerlevel10k instalado e configurado"
 
 # ============================================================
 # 8. Plugins Zsh (autosuggestions + syntax-highlighting)
@@ -280,9 +291,8 @@ echo "  ╚═════╝  ╚═════╝ ╚═╝  ╚═══╝�
 echo -e "${NC}"
 echo "  Proximos passos:"
 echo ""
-echo -e "  ${YELLOW}1.${NC} Feche esta janela e abra o Ubuntu de novo"
-echo -e "  ${YELLOW}2.${NC} O wizard do Powerlevel10k vai abrir — siga as instrucoes"
-echo -e "  ${YELLOW}3.${NC} Adicione sua chave SSH no GitHub:"
+echo -e "  ${YELLOW}1.${NC} Feche esta janela e abra o Ubuntu de novo (p10k ja esta configurado)"
+echo -e "  ${YELLOW}2.${NC} Adicione sua chave SSH no GitHub:"
 echo "        https://github.com/settings/ssh/new"
 if [ -n "$SSH_PUB" ]; then
   echo ""
@@ -292,11 +302,8 @@ if [ -n "$SSH_PUB" ]; then
   echo -e "  ${CYAN}${SSH_PUB}${NC}"
   echo ""
 fi
-echo -e "  ${YELLOW}4.${NC} Faca login no GitHub CLI:"
+echo -e "  ${YELLOW}3.${NC} Faca login no GitHub CLI:"
 echo "        gh auth login"
-echo -e "  ${YELLOW}5.${NC} Rode o doctor:"
+echo -e "  ${YELLOW}4.${NC} Rode o doctor:"
 echo "        flowforge doctor"
-echo ""
-echo -e "  ${YELLOW}FONTE:${NC} Configure no Windows Terminal:"
-echo "    Configuracoes -> Ubuntu -> Aparencia -> Fonte -> MesloLGS NF"
 echo ""
