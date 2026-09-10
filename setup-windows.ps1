@@ -6,6 +6,11 @@
 
 $ErrorActionPreference = "Stop"
 
+# Bug conhecido do Windows PowerShell 5.1: a barra de progresso do
+# Invoke-WebRequest pode deixar o download MUITO mais lento (não é a rede,
+# é o render da barra) — o que faria nossos próprios timeouts dispararem à toa.
+$ProgressPreference = "SilentlyContinue"
+
 function Write-Step($num, $total, $msg) {
     Write-Host ""
     Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Blue
@@ -170,7 +175,8 @@ try {
 } catch {}
 
 $wslInstallFailed = $false
-$featuresNeedReboot = $false
+$rebootReasons = @()
+$blockingFailure = $false
 if (-not $wslInstalled) {
     # Erro real visto em campo: "wsl --install" pode reportar sucesso sem
     # deixar o Microsoft-Windows-Subsystem-Linux DE VERDADE habilitado — o
@@ -181,7 +187,6 @@ if (-not $wslInstalled) {
     $wslFeature = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -ErrorAction SilentlyContinue
     $vmpFeature = Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -ErrorAction SilentlyContinue
 
-    $featuresEnableFailed = $false
     if ($wslFeature.State -ne "Enabled" -or $vmpFeature.State -ne "Enabled") {
         Write-Host "  Habilitando recursos do Windows (Subsistema Linux + Virtual Machine Platform)..." -ForegroundColor Cyan
         try {
@@ -191,10 +196,10 @@ if (-not $wslInstalled) {
             if ($vmpFeature.State -ne "Enabled") {
                 Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -All -NoRestart | Out-Null
             }
-            $featuresNeedReboot = $true
+            $rebootReasons += "recursos do Windows habilitados agora"
             Write-Host "✔  Recursos habilitados — precisam de reboot pra ativar de verdade" -ForegroundColor Green
         } catch {
-            $featuresEnableFailed = $true
+            $blockingFailure = $true
             Write-Host "⚠  Não conseguimos habilitar os recursos automaticamente: $($_.Exception.Message)" -ForegroundColor Yellow
             Write-Host "   Habilite manualmente em 'Ativar ou desativar recursos do Windows':" -ForegroundColor Yellow
             Write-Host "   marque 'Subsistema do Windows para Linux' e 'Plataforma de Máquina Virtual'." -ForegroundColor Yellow
@@ -203,18 +208,44 @@ if (-not $wslInstalled) {
         Write-Host "✔  Recursos do Windows já habilitados" -ForegroundColor Green
     }
 
-    if ($featuresEnableFailed) {
+    # wsl.exe muito antigo (visto em campo: sem --update, --version, -l -v)
+    # não consegue atualizar o kernel do WSL2 sozinho — é outra causa conhecida
+    # do erro 0x8007019e mesmo com os dois recursos acima habilitados. Baixa e
+    # instala o pacote standalone que a Microsoft mantém pra esse caso, em vez
+    # de mandar o usuário caçar isso manualmente.
+    if (-not $blockingFailure) {
+        Write-Host "  Conferindo/instalando o kernel do WSL2..." -ForegroundColor DarkGray
+        try {
+            $kernelMsi = "$env:TEMP\wsl_update_x64.msi"
+            Invoke-WebRequest -Uri "https://aka.ms/wsl2kernel" -OutFile $kernelMsi -UseBasicParsing -TimeoutSec 60
+            $msiProcess = Start-Process msiexec.exe -ArgumentList "/i `"$kernelMsi`" /quiet /norestart" -Wait -PassThru
+            Remove-Item $kernelMsi -Force -ErrorAction SilentlyContinue
+            if ($msiProcess.ExitCode -eq 3010) {
+                $rebootReasons += "kernel do WSL2 atualizado"
+                Write-Host "✔  Kernel do WSL2 atualizado — precisa de reboot pra ativar" -ForegroundColor Green
+            } elseif ($msiProcess.ExitCode -eq 0) {
+                Write-Host "✔  Kernel do WSL2 já estava atualizado" -ForegroundColor Green
+            } else {
+                Write-Host "⚠  Instalador do kernel terminou com código $($msiProcess.ExitCode) — pode não ter aplicado" -ForegroundColor Yellow
+                Write-Host "   Baixe manualmente se o problema persistir: https://aka.ms/wsl2kernel" -ForegroundColor Yellow
+            }
+        } catch {
+            Write-Host "⚠  Não conseguimos baixar/instalar o kernel do WSL2: $($_.Exception.Message)" -ForegroundColor Yellow
+            Write-Host "   Baixe manualmente se o problema persistir: https://aka.ms/wsl2kernel" -ForegroundColor Yellow
+        }
+    }
+
+    if ($blockingFailure) {
         # Reboot não resolve isso — é permissão/SKU, não estado pendente.
-        Write-Host "  Pulando a instalação da distro até os recursos serem habilitados manualmente." -ForegroundColor Yellow
+        Write-Host "  Pulando a instalação da distro até isso ser resolvido manualmente." -ForegroundColor Yellow
         $needsReboot = $false
-    } elseif ($featuresNeedReboot) {
-        # Tentar instalar a distro agora daria o mesmo erro 0x8007019e — os
-        # recursos foram habilitados mas só ficam ativos depois do reboot.
+    } elseif ($rebootReasons.Count -gt 0) {
+        # Tentar instalar a distro agora daria o mesmo erro 0x8007019e de novo —
+        # nada do que foi habilitado/atualizado acima funciona antes do reboot.
         Write-Host "  A instalação da distro só funciona depois do reboot — pulando por enquanto." -ForegroundColor Yellow
+        Write-Host "  Motivo: $($rebootReasons -join '; ')." -ForegroundColor DarkGray
         $needsReboot = $true
     } else {
-        # Kernel do WSL desatualizado é outra causa conhecida de "wsl --install"
-        # terminar "bem" sem registrar distro nenhuma — atualiza antes de tentar.
         try { wsl --update *>$null } catch {}
 
         Write-Host "Instalando WSL2 com Ubuntu — isso pode levar de 5 a 15 minutos," -ForegroundColor Cyan
@@ -243,8 +274,10 @@ if (-not $needsReboot) {
     # suportados desde versões bem mais antigas, então usamos esses.
     wsl --status
     Get-WslDistroList
-} elseif ($featuresNeedReboot) {
-    Write-Host "  Depois do reboot, o Windows vai terminar de ativar os recursos habilitados acima." -ForegroundColor DarkGray
+} elseif ($blockingFailure) {
+    Write-Host "  ⚠  Resolva o aviso acima manualmente antes de continuar." -ForegroundColor Yellow
+} elseif ($rebootReasons -and $rebootReasons.Count -gt 0) {
+    Write-Host "  Depois do reboot, o Windows termina de ativar o que foi preparado acima." -ForegroundColor DarkGray
     Write-Host "  Só então rode 'wsl --install -d Ubuntu' (instrução no fim) pra registrar a distro." -ForegroundColor DarkGray
 } elseif ($wslInstallFailed) {
     Write-Host "  ⚠  O comando terminou com erro — rode de novo depois do reboot." -ForegroundColor Yellow
