@@ -170,47 +170,89 @@ try {
 } catch {}
 
 $wslInstallFailed = $false
+$featuresNeedReboot = $false
 if (-not $wslInstalled) {
-    # Kernel do WSL desatualizado é causa conhecida de "wsl --install" terminar
-    # com sucesso sem registrar distro nenhuma — atualiza antes de tentar.
-    try { wsl --update } catch {}
+    # Erro real visto em campo: "wsl --install" pode reportar sucesso sem
+    # deixar o Microsoft-Windows-Subsystem-Linux DE VERDADE habilitado — o
+    # sintoma só aparece depois, ao abrir a distro: "WslRegisterDistribution
+    # failed with error: 0x8007019e". Em vez de confiar no --install pra
+    # habilitar isso sozinho, conferimos e habilitamos explicitamente antes.
+    Write-Host "  Conferindo recursos do Windows necessários pro WSL2..." -ForegroundColor DarkGray
+    $wslFeature = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -ErrorAction SilentlyContinue
+    $vmpFeature = Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -ErrorAction SilentlyContinue
 
-    Write-Host "Instalando WSL2 com Ubuntu — isso pode levar de 5 a 15 minutos," -ForegroundColor Cyan
-    Write-Host "dependendo da internet. Não feche esta janela, mesmo sem novidade na tela." -ForegroundColor Cyan
-    wsl --install -d Ubuntu
-    $installExitCode = $LASTEXITCODE
-    if ($installExitCode -ne 0) {
-        $wslInstallFailed = $true
-        Write-Host "✖  wsl --install terminou com erro (código $installExitCode) — a distro pode não ter sido registrada" -ForegroundColor Red
-        Write-Host "   Rode manualmente pra ver o motivo completo: wsl --install -d Ubuntu" -ForegroundColor Yellow
+    $featuresEnableFailed = $false
+    if ($wslFeature.State -ne "Enabled" -or $vmpFeature.State -ne "Enabled") {
+        Write-Host "  Habilitando recursos do Windows (Subsistema Linux + Virtual Machine Platform)..." -ForegroundColor Cyan
+        try {
+            if ($wslFeature.State -ne "Enabled") {
+                Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -All -NoRestart | Out-Null
+            }
+            if ($vmpFeature.State -ne "Enabled") {
+                Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -All -NoRestart | Out-Null
+            }
+            $featuresNeedReboot = $true
+            Write-Host "✔  Recursos habilitados — precisam de reboot pra ativar de verdade" -ForegroundColor Green
+        } catch {
+            $featuresEnableFailed = $true
+            Write-Host "⚠  Não conseguimos habilitar os recursos automaticamente: $($_.Exception.Message)" -ForegroundColor Yellow
+            Write-Host "   Habilite manualmente em 'Ativar ou desativar recursos do Windows':" -ForegroundColor Yellow
+            Write-Host "   marque 'Subsistema do Windows para Linux' e 'Plataforma de Máquina Virtual'." -ForegroundColor Yellow
+        }
     } else {
-        Write-Host "✔  Comando de instalação rodou sem erro" -ForegroundColor Green
+        Write-Host "✔  Recursos do Windows já habilitados" -ForegroundColor Green
     }
-    $needsReboot = $true
+
+    if ($featuresEnableFailed) {
+        # Reboot não resolve isso — é permissão/SKU, não estado pendente.
+        Write-Host "  Pulando a instalação da distro até os recursos serem habilitados manualmente." -ForegroundColor Yellow
+        $needsReboot = $false
+    } elseif ($featuresNeedReboot) {
+        # Tentar instalar a distro agora daria o mesmo erro 0x8007019e — os
+        # recursos foram habilitados mas só ficam ativos depois do reboot.
+        Write-Host "  A instalação da distro só funciona depois do reboot — pulando por enquanto." -ForegroundColor Yellow
+        $needsReboot = $true
+    } else {
+        # Kernel do WSL desatualizado é outra causa conhecida de "wsl --install"
+        # terminar "bem" sem registrar distro nenhuma — atualiza antes de tentar.
+        try { wsl --update *>$null } catch {}
+
+        Write-Host "Instalando WSL2 com Ubuntu — isso pode levar de 5 a 15 minutos," -ForegroundColor Cyan
+        Write-Host "dependendo da internet. Não feche esta janela, mesmo sem novidade na tela." -ForegroundColor Cyan
+        wsl --install -d Ubuntu
+        $installExitCode = $LASTEXITCODE
+        if ($installExitCode -ne 0) {
+            $wslInstallFailed = $true
+            Write-Host "✖  wsl --install terminou com erro (código $installExitCode) — a distro pode não ter sido registrada" -ForegroundColor Red
+            Write-Host "   Rode manualmente pra ver o motivo completo: wsl --install -d Ubuntu" -ForegroundColor Yellow
+            $needsReboot = $true
+        } else {
+            Write-Host "✔  Comando de instalação rodou sem erro" -ForegroundColor Green
+            $needsReboot = $false
+        }
+    }
 } else {
     $needsReboot = $false
 }
 
 if (-not $needsReboot) {
     Write-Host ""
-    Write-Host "  Versão do WSL e distros instaladas:" -ForegroundColor DarkGray
-    wsl --version
-    wsl -l -v
+    Write-Host "  Status e distros instaladas:" -ForegroundColor DarkGray
+    # "wsl --version"/"-l -v" não existem em builds mais antigas do wsl.exe e
+    # aí ele despeja o texto de ajuda inteiro — --status e --quiet são
+    # suportados desde versões bem mais antigas, então usamos esses.
+    wsl --status
+    Get-WslDistroList
+} elseif ($featuresNeedReboot) {
+    Write-Host "  Depois do reboot, o Windows vai terminar de ativar os recursos habilitados acima." -ForegroundColor DarkGray
+    Write-Host "  Só então rode 'wsl --install -d Ubuntu' (instrução no fim) pra registrar a distro." -ForegroundColor DarkGray
+} elseif ($wslInstallFailed) {
+    Write-Host "  ⚠  O comando terminou com erro — rode de novo depois do reboot." -ForegroundColor Yellow
 } else {
-    # "wsl --install" pode terminar com sucesso tendo feito só METADE do trabalho:
-    # numa máquina sem o VirtualMachinePlatform habilitado antes, ele habilita o
-    # componente e pede reboot — mas só registra a distro numa SEGUNDA chamada,
-    # depois de reiniciar. Ninguém re-executa isso sozinho, então tratamos o
-    # "rode de novo depois do reboot" como passo padrão, não como troubleshooting
-    # condicional — ver instruções finais (etapa 7).
-    if ($wslInstallFailed) {
-        Write-Host "  ⚠  Além disso, o comando terminou com erro — é ainda mais provável que precise rodar de novo." -ForegroundColor Yellow
-    } else {
-        Write-Host "  (normal: numa máquina que nunca teve WSL, o registro da distro só completa" -ForegroundColor DarkGray
-        Write-Host "   na SEGUNDA chamada de 'wsl --install -d Ubuntu', depois do reboot.)" -ForegroundColor DarkGray
-    }
+    Write-Host "  (normal: numa máquina que nunca teve WSL, o registro da distro às vezes só" -ForegroundColor DarkGray
+    Write-Host "   completa na SEGUNDA chamada de 'wsl --install -d Ubuntu', depois do reboot.)" -ForegroundColor DarkGray
 }
-Show-Verify 'wsl --version; wsl -l -v'
+Show-Verify 'wsl --status; wsl --list --quiet; Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux,VirtualMachinePlatform'
 
 # ============================================================
 # 3. Windows Terminal (via winget)
@@ -418,7 +460,7 @@ if ($needsReboot) {
     Write-Host "     Numa máquina que nunca teve WSL, esse é o passo que REALMENTE registra" -ForegroundColor White
     Write-Host "     a distro — a primeira chamada, antes do reboot, só habilita o componente" -ForegroundColor White
     Write-Host "     do Windows. Pular esse passo é a causa nº1 do Ubuntu 'abrir e fechar na hora'." -ForegroundColor White
-    Write-Host "  3. Confirme com 'wsl -l -v' — só abra o Ubuntu depois de ver 'Ubuntu' listado." -ForegroundColor White
+    Write-Host "  3. Confirme com 'wsl --list --quiet' — só abra o Ubuntu depois de ver 'Ubuntu' listado." -ForegroundColor White
     Write-Host "  4. Abra 'Ubuntu' no menu Iniciar (vai pedir pra criar usuario)" -ForegroundColor White
     Write-Host "  5. Dentro do Ubuntu, rode:" -ForegroundColor White
 } else {
@@ -429,7 +471,7 @@ Write-Host ""
 Write-Host "     curl -sL https://raw.githubusercontent.com/CbBelmante/wsl-flowforge-setup/main/bootstrap.sh | bash" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  Quer conferir tudo de uma vez? Rode:" -ForegroundColor Yellow
-Write-Host "     wsl -l -v" -ForegroundColor Cyan
+Write-Host "     wsl --status; wsl --list --quiet" -ForegroundColor Cyan
 Write-Host "     winget list --id Microsoft.WindowsTerminal" -ForegroundColor Cyan
 Write-Host "     Test-Path `"`$env:SystemRoot\Fonts\MesloLGS NF Regular.ttf`"" -ForegroundColor Cyan
 Write-Host ""
