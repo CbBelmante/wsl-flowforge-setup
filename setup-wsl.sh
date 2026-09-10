@@ -171,7 +171,10 @@ banner "Instalando Oh My Zsh"
 if [ -d "$HOME/.oh-my-zsh" ]; then
   warn "Oh My Zsh já existe, pulando..."
 else
-  RUNZSH=no CHSH=no timeout 120 sh -c "$(curl -fsSL --connect-timeout 10 --max-time 60 https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+  # "|| true": se isso falhar (rede, timeout etc), o set -e do topo do script
+  # abortaria TUDO daqui pra frente sem nem chegar na checagem logo abaixo.
+  # A própria checagem de "instalou de verdade" já existe — deixa ela decidir.
+  RUNZSH=no CHSH=no timeout 120 sh -c "$(curl -fsSL --connect-timeout 10 --max-time 60 https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" || true
 fi
 # Se o curl dentro do $(...) falhar, sh -c "" roda um comando vazio e retorna
 # sucesso mesmo sem instalar nada — por isso o "ok" só vale depois de checar o arquivo.
@@ -191,14 +194,21 @@ P10K_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
 if [ -d "$P10K_DIR" ]; then
   warn "Powerlevel10k já existe, pulando..."
 else
-  git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$P10K_DIR"
+  # "|| true": mesma razão de sempre — sem isso, uma falha de rede aqui
+  # abortaria TODAS as etapas seguintes (8 a 14) em silêncio via set -e.
+  git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$P10K_DIR" || true
 fi
 sed -i 's/ZSH_THEME="robbyrussell"/ZSH_THEME="powerlevel10k\/powerlevel10k"/' "$HOME/.zshrc"
 
 REPO_BASE="https://raw.githubusercontent.com/CbBelmante/wsl-flowforge-setup/main"
 if [ ! -f "$HOME/.p10k.zsh" ]; then
-  curl -fsSL --connect-timeout 10 --max-time 60 "$REPO_BASE/.p10k.zsh" -o "$HOME/.p10k.zsh"
-  ok "Config p10k aplicada (rainbow + nerd fonts)"
+  # "|| true": mesma razão de sempre — não pode abortar o resto do script.
+  curl -fsSL --connect-timeout 10 --max-time 60 "$REPO_BASE/.p10k.zsh" -o "$HOME/.p10k.zsh" || true
+  if [ -f "$HOME/.p10k.zsh" ]; then
+    ok "Config p10k aplicada (rainbow + nerd fonts)"
+  else
+    fail "Não conseguimos baixar a config do p10k — confira manualmente"
+  fi
 else
   warn "Config p10k ja existe, mantendo a atual"
 fi
@@ -219,12 +229,14 @@ verify 'grep ZSH_THEME ~/.zshrc; ls "$ZSH_CUSTOM/themes/powerlevel10k"'
 banner "Instalando plugins Zsh"
 ZSH_CUSTOM_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
 
+# "|| true" nos dois clones: mesma razão de sempre — uma falha de rede aqui
+# não pode abortar as etapas 9 a 14 em silêncio via set -e.
 if [ ! -d "$ZSH_CUSTOM_DIR/plugins/zsh-autosuggestions" ]; then
-  git clone https://github.com/zsh-users/zsh-autosuggestions "$ZSH_CUSTOM_DIR/plugins/zsh-autosuggestions"
+  git clone https://github.com/zsh-users/zsh-autosuggestions "$ZSH_CUSTOM_DIR/plugins/zsh-autosuggestions" || true
 fi
 
 if [ ! -d "$ZSH_CUSTOM_DIR/plugins/zsh-syntax-highlighting" ]; then
-  git clone https://github.com/zsh-users/zsh-syntax-highlighting "$ZSH_CUSTOM_DIR/plugins/zsh-syntax-highlighting"
+  git clone https://github.com/zsh-users/zsh-syntax-highlighting "$ZSH_CUSTOM_DIR/plugins/zsh-syntax-highlighting" || true
 fi
 
 sed -i 's/plugins=(git)/plugins=(git zsh-autosuggestions zsh-syntax-highlighting)/' "$HOME/.zshrc"
@@ -288,12 +300,18 @@ banner "Instalando GitHub CLI"
 if command -v gh &>/dev/null; then
   warn "GitHub CLI já instalado: $(gh --version | head -1)"
 else
+  # "|| true" nos comandos de rede: mesma razão de sempre — não pode abortar
+  # as etapas seguintes (Node, Claude Code, FlowForge) em silêncio via set -e.
   sudo mkdir -p -m 755 /etc/apt/keyrings
-  wget -qO- --timeout=15 --tries=1 https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null
-  sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+  wget -qO- --timeout=15 --tries=1 https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null || true
+  sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg 2>/dev/null || true
   echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-  sudo apt update && sudo apt install -y gh
-  ok "GitHub CLI instalado"
+  sudo apt update && sudo apt install -y gh || true
+  if command -v gh &>/dev/null; then
+    ok "GitHub CLI instalado"
+  else
+    fail "GitHub CLI não ficou disponível — confira manualmente"
+  fi
 fi
 echo "  $(gh --version | head -1)"
 verify "gh --version"
@@ -308,9 +326,11 @@ if [ -s "$NVM_DIR/nvm.sh" ]; then
   # shellcheck source=/dev/null
   . "$NVM_DIR/nvm.sh"
 else
-  curl -fsSL --connect-timeout 10 --max-time 60 https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+  # "|| true": mesma razão de sempre. E o source de baixo só roda se o
+  # arquivo realmente existir — senão ele mesmo abortaria o script.
+  curl -fsSL --connect-timeout 10 --max-time 60 https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash || true
   # shellcheck source=/dev/null
-  . "$NVM_DIR/nvm.sh"
+  [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 fi
 # O instalador do nvm decide sozinho entre .bashrc/.zshrc olhando $SHELL —
 # mas nesse ponto do script $SHELL ainda mostra bash (o chsh da etapa 5 só
@@ -333,7 +353,10 @@ else
   # Só que isso isola o PATH que o nvm ajusta lá dentro, então depois de
   # instalar, rodamos "nvm use" de novo aqui fora (rápido, local, sem rede)
   # pra puxar o PATH certo pro shell principal do script.
-  timeout 180 bash -c '. "$NVM_DIR/nvm.sh"; nvm install --lts'
+  # "|| true": mesma razão de sempre — uma falha aqui não pode abortar o
+  # script inteiro e pular Claude Code/FlowForge em silêncio. A checagem
+  # "command -v node" logo abaixo é quem decide se deu certo.
+  timeout 180 bash -c '. "$NVM_DIR/nvm.sh"; nvm install --lts' || true
   nvm use --lts >/dev/null 2>&1 || true
   if command -v node &>/dev/null; then
     ok "Node.js $(node -v) instalado"
@@ -352,7 +375,10 @@ banner "Instalando Claude Code"
 if command -v claude &>/dev/null; then
   warn "Claude Code já instalado: $(claude --version 2>/dev/null || echo '?')"
 else
-  timeout 180 npm install -g @anthropic-ai/claude-code
+  # "|| true": era exatamente esse comando que, ao falhar, derrubava o script
+  # inteiro via set -e e pulava a etapa do FlowForge em silêncio — confirmado
+  # em campo (claude nunca instalado, FlowForge nunca chegou a rodar).
+  timeout 180 npm install -g @anthropic-ai/claude-code || true
   if command -v claude &>/dev/null; then
     ok "Claude Code instalado"
   else
@@ -375,7 +401,8 @@ else
   mkdir -p "$HOME/.local/bin"
   # O curl já tem timeout de download; o "timeout" externo cobre o instalador
   # em si, que pode fazer mais chamadas de rede depois de receber o script.
-  FLOWFORGE_INSTALL_DIR="$HOME/.local/bin" timeout 120 bash -c 'curl -fsSL --connect-timeout 10 --max-time 60 https://get.flowforgesoft.com/install.sh | sh'
+  # "|| true": mesma razão — não deixa uma falha aqui virar abort do resto do script.
+  FLOWFORGE_INSTALL_DIR="$HOME/.local/bin" timeout 120 bash -c 'curl -fsSL --connect-timeout 10 --max-time 60 https://get.flowforgesoft.com/install.sh | sh' || true
   hash -r
   if command -v flowforge &>/dev/null; then
     ok "FlowForge instalado"
