@@ -208,6 +208,22 @@ if (-not $wslInstalled) {
         Write-Host "✔  Recursos do Windows já habilitados" -ForegroundColor Green
     }
 
+    # Plataforma de Hipervisor do Windows (HypervisorPlatform) — não é exigida
+    # pelo WSL2, mas foi pedida explicitamente. Fica separada e não-bloqueante:
+    # se essa falhar (SKU sem suporte, por exemplo) não impede o WSL2 de funcionar.
+    $hvpFeature = Get-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform -ErrorAction SilentlyContinue
+    if ($hvpFeature -and $hvpFeature.State -ne "Enabled") {
+        try {
+            Enable-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform -All -NoRestart | Out-Null
+            $rebootReasons += "Plataforma de Hipervisor do Windows habilitada agora"
+            Write-Host "✔  Plataforma de Hipervisor do Windows habilitada — precisa de reboot pra ativar" -ForegroundColor Green
+        } catch {
+            Write-Host "⚠  Não conseguimos habilitar a Plataforma de Hipervisor do Windows: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    } elseif ($hvpFeature) {
+        Write-Host "✔  Plataforma de Hipervisor do Windows já habilitada" -ForegroundColor Green
+    }
+
     # wsl.exe muito antigo (visto em campo: sem --update, --version, -l -v)
     # não consegue atualizar o kernel do WSL2 sozinho — é outra causa conhecida
     # do erro 0x8007019e mesmo com os dois recursos acima habilitados. Baixa e
@@ -285,7 +301,7 @@ if (-not $needsReboot) {
     Write-Host "  (normal: numa máquina que nunca teve WSL, o registro da distro às vezes só" -ForegroundColor DarkGray
     Write-Host "   completa na SEGUNDA chamada de 'wsl --install -d Ubuntu', depois do reboot.)" -ForegroundColor DarkGray
 }
-Show-Verify 'wsl --status; wsl --list --quiet; Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux,VirtualMachinePlatform'
+Show-Verify 'wsl --status; wsl --list --quiet; Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux,VirtualMachinePlatform,HypervisorPlatform'
 
 # ============================================================
 # 3. Windows Terminal (via winget)
