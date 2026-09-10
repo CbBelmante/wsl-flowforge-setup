@@ -175,80 +175,78 @@ try {
 
 $rebootReasons = @()
 $blockingFailure = $false
-if ($wslInstalled) {
-    Write-Host "⚠  Ubuntu já instalado — pulando checagem de recursos" -ForegroundColor Yellow
+
+# Roda SEMPRE, mesmo se "Ubuntu" já aparece em "wsl --list --quiet" — isso só
+# prova que o NOME está registrado, não que o WSL2 está de fato funcional.
+# Erro real visto em campo: uma distro instalada manualmente pela Store ficou
+# "registrada" e o script pulava a checagem inteira achando que não precisava,
+# mesmo os recursos do Windows continuando desabilitados por baixo — causando
+# "WslRegisterDistribution failed with error: 0x8007019e" na hora de abrir.
+Write-Host "  Conferindo recursos do Windows necessários pro WSL2..." -ForegroundColor DarkGray
+$wslFeature = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -ErrorAction SilentlyContinue
+$vmpFeature = Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -ErrorAction SilentlyContinue
+
+if ($wslFeature.State -ne "Enabled" -or $vmpFeature.State -ne "Enabled") {
+    Write-Host "  Habilitando recursos do Windows (Subsistema Linux + Virtual Machine Platform)..." -ForegroundColor Cyan
+    try {
+        if ($wslFeature.State -ne "Enabled") {
+            Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -All -NoRestart | Out-Null
+        }
+        if ($vmpFeature.State -ne "Enabled") {
+            Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -All -NoRestart | Out-Null
+        }
+        $rebootReasons += "recursos do Windows habilitados agora"
+        Write-Host "✔  Recursos habilitados — precisam de reboot pra ativar de verdade" -ForegroundColor Green
+    } catch {
+        $blockingFailure = $true
+        Write-Host "⚠  Não conseguimos habilitar os recursos automaticamente: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Host "   Habilite manualmente em 'Ativar ou desativar recursos do Windows':" -ForegroundColor Yellow
+        Write-Host "   marque 'Subsistema do Windows para Linux' e 'Plataforma de Máquina Virtual'." -ForegroundColor Yellow
+    }
 } else {
-    # Erro real visto em campo: "wsl --install" pode reportar sucesso sem
-    # deixar o Microsoft-Windows-Subsystem-Linux DE VERDADE habilitado — o
-    # sintoma só aparece depois, ao abrir a distro: "WslRegisterDistribution
-    # failed with error: 0x8007019e". Em vez de confiar no --install pra
-    # habilitar isso sozinho, conferimos e habilitamos explicitamente antes.
-    Write-Host "  Conferindo recursos do Windows necessários pro WSL2..." -ForegroundColor DarkGray
-    $wslFeature = Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -ErrorAction SilentlyContinue
-    $vmpFeature = Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -ErrorAction SilentlyContinue
+    Write-Host "✔  Recursos do Windows já habilitados" -ForegroundColor Green
+}
 
-    if ($wslFeature.State -ne "Enabled" -or $vmpFeature.State -ne "Enabled") {
-        Write-Host "  Habilitando recursos do Windows (Subsistema Linux + Virtual Machine Platform)..." -ForegroundColor Cyan
-        try {
-            if ($wslFeature.State -ne "Enabled") {
-                Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux -All -NoRestart | Out-Null
-            }
-            if ($vmpFeature.State -ne "Enabled") {
-                Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -All -NoRestart | Out-Null
-            }
-            $rebootReasons += "recursos do Windows habilitados agora"
-            Write-Host "✔  Recursos habilitados — precisam de reboot pra ativar de verdade" -ForegroundColor Green
-        } catch {
-            $blockingFailure = $true
-            Write-Host "⚠  Não conseguimos habilitar os recursos automaticamente: $($_.Exception.Message)" -ForegroundColor Yellow
-            Write-Host "   Habilite manualmente em 'Ativar ou desativar recursos do Windows':" -ForegroundColor Yellow
-            Write-Host "   marque 'Subsistema do Windows para Linux' e 'Plataforma de Máquina Virtual'." -ForegroundColor Yellow
-        }
-    } else {
-        Write-Host "✔  Recursos do Windows já habilitados" -ForegroundColor Green
+# Plataforma de Hipervisor do Windows (HypervisorPlatform) — não é exigida
+# pelo WSL2, mas foi pedida explicitamente. Fica separada e não-bloqueante:
+# se essa falhar (SKU sem suporte, por exemplo) não impede o WSL2 de funcionar.
+$hvpFeature = Get-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform -ErrorAction SilentlyContinue
+if ($hvpFeature -and $hvpFeature.State -ne "Enabled") {
+    try {
+        Enable-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform -All -NoRestart | Out-Null
+        $rebootReasons += "Plataforma de Hipervisor do Windows habilitada agora"
+        Write-Host "✔  Plataforma de Hipervisor do Windows habilitada — precisa de reboot pra ativar" -ForegroundColor Green
+    } catch {
+        Write-Host "⚠  Não conseguimos habilitar a Plataforma de Hipervisor do Windows: $($_.Exception.Message)" -ForegroundColor Yellow
     }
+} elseif ($hvpFeature) {
+    Write-Host "✔  Plataforma de Hipervisor do Windows já habilitada" -ForegroundColor Green
+}
 
-    # Plataforma de Hipervisor do Windows (HypervisorPlatform) — não é exigida
-    # pelo WSL2, mas foi pedida explicitamente. Fica separada e não-bloqueante:
-    # se essa falhar (SKU sem suporte, por exemplo) não impede o WSL2 de funcionar.
-    $hvpFeature = Get-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform -ErrorAction SilentlyContinue
-    if ($hvpFeature -and $hvpFeature.State -ne "Enabled") {
-        try {
-            Enable-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform -All -NoRestart | Out-Null
-            $rebootReasons += "Plataforma de Hipervisor do Windows habilitada agora"
-            Write-Host "✔  Plataforma de Hipervisor do Windows habilitada — precisa de reboot pra ativar" -ForegroundColor Green
-        } catch {
-            Write-Host "⚠  Não conseguimos habilitar a Plataforma de Hipervisor do Windows: $($_.Exception.Message)" -ForegroundColor Yellow
-        }
-    } elseif ($hvpFeature) {
-        Write-Host "✔  Plataforma de Hipervisor do Windows já habilitada" -ForegroundColor Green
-    }
-
-    # wsl.exe muito antigo (visto em campo: sem --update, --version, -l -v)
-    # não consegue atualizar o kernel do WSL2 sozinho — é outra causa conhecida
-    # do erro 0x8007019e mesmo com os dois recursos acima habilitados. Baixa e
-    # instala o pacote standalone que a Microsoft mantém pra esse caso, em vez
-    # de mandar o usuário caçar isso manualmente.
-    if (-not $blockingFailure) {
-        Write-Host "  Conferindo/instalando o kernel do WSL2..." -ForegroundColor DarkGray
-        try {
-            $kernelMsi = "$env:TEMP\wsl_update_x64.msi"
-            Invoke-WebRequest -Uri "https://aka.ms/wsl2kernel" -OutFile $kernelMsi -UseBasicParsing -TimeoutSec 60
-            $msiProcess = Start-Process msiexec.exe -ArgumentList "/i `"$kernelMsi`" /quiet /norestart" -Wait -PassThru
-            Remove-Item $kernelMsi -Force -ErrorAction SilentlyContinue
-            if ($msiProcess.ExitCode -eq 3010) {
-                $rebootReasons += "kernel do WSL2 atualizado"
-                Write-Host "✔  Kernel do WSL2 atualizado — precisa de reboot pra ativar" -ForegroundColor Green
-            } elseif ($msiProcess.ExitCode -eq 0) {
-                Write-Host "✔  Kernel do WSL2 já estava atualizado" -ForegroundColor Green
-            } else {
-                Write-Host "⚠  Instalador do kernel terminou com código $($msiProcess.ExitCode) — pode não ter aplicado" -ForegroundColor Yellow
-                Write-Host "   Baixe manualmente se o problema persistir: https://aka.ms/wsl2kernel" -ForegroundColor Yellow
-            }
-        } catch {
-            Write-Host "⚠  Não conseguimos baixar/instalar o kernel do WSL2: $($_.Exception.Message)" -ForegroundColor Yellow
+# wsl.exe muito antigo (visto em campo: sem --update, --version, -l -v)
+# não consegue atualizar o kernel do WSL2 sozinho — é outra causa conhecida
+# do erro 0x8007019e mesmo com os dois recursos acima habilitados. Baixa e
+# instala o pacote standalone que a Microsoft mantém pra esse caso, em vez
+# de mandar o usuário caçar isso manualmente.
+if (-not $blockingFailure) {
+    Write-Host "  Conferindo/instalando o kernel do WSL2..." -ForegroundColor DarkGray
+    try {
+        $kernelMsi = "$env:TEMP\wsl_update_x64.msi"
+        Invoke-WebRequest -Uri "https://aka.ms/wsl2kernel" -OutFile $kernelMsi -UseBasicParsing -TimeoutSec 60
+        $msiProcess = Start-Process msiexec.exe -ArgumentList "/i `"$kernelMsi`" /quiet /norestart" -Wait -PassThru
+        Remove-Item $kernelMsi -Force -ErrorAction SilentlyContinue
+        if ($msiProcess.ExitCode -eq 3010) {
+            $rebootReasons += "kernel do WSL2 atualizado"
+            Write-Host "✔  Kernel do WSL2 atualizado — precisa de reboot pra ativar" -ForegroundColor Green
+        } elseif ($msiProcess.ExitCode -eq 0) {
+            Write-Host "✔  Kernel do WSL2 já estava atualizado" -ForegroundColor Green
+        } else {
+            Write-Host "⚠  Instalador do kernel terminou com código $($msiProcess.ExitCode) — pode não ter aplicado" -ForegroundColor Yellow
             Write-Host "   Baixe manualmente se o problema persistir: https://aka.ms/wsl2kernel" -ForegroundColor Yellow
         }
+    } catch {
+        Write-Host "⚠  Não conseguimos baixar/instalar o kernel do WSL2: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Host "   Baixe manualmente se o problema persistir: https://aka.ms/wsl2kernel" -ForegroundColor Yellow
     }
 }
 Show-Verify 'Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux,VirtualMachinePlatform,HypervisorPlatform'
@@ -259,19 +257,20 @@ Show-Verify 'Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-S
 Write-Step 3 $total "Instalando WSL2 + Ubuntu"
 
 $wslInstallFailed = $false
-if ($wslInstalled) {
-    Write-Host "⚠  Ubuntu já instalado no WSL" -ForegroundColor Yellow
-    $needsReboot = $false
-} elseif ($blockingFailure) {
+if ($blockingFailure) {
     # Reboot não resolve isso — é permissão/SKU, não estado pendente.
     Write-Host "  Pulando a instalação da distro até isso ser resolvido manualmente (veja etapa 2)." -ForegroundColor Yellow
     $needsReboot = $false
 } elseif ($rebootReasons.Count -gt 0) {
-    # Tentar instalar a distro agora daria o mesmo erro 0x8007019e de novo —
-    # nada do que foi habilitado/atualizado na etapa 2 funciona antes do reboot.
-    Write-Host "  A instalação da distro só funciona depois do reboot — pulando por enquanto." -ForegroundColor Yellow
+    # Prioridade MÁXIMA, mesmo se "Ubuntu" já aparecia registrado: a etapa 2
+    # acabou de mexer em recurso/kernel do Windows, e nada disso funciona
+    # antes do reboot — tentar usar a distro agora repete o 0x8007019e.
+    Write-Host "  A instalação/uso da distro só funciona depois do reboot — pulando por enquanto." -ForegroundColor Yellow
     Write-Host "  Motivo: $($rebootReasons -join '; ')." -ForegroundColor DarkGray
     $needsReboot = $true
+} elseif ($wslInstalled) {
+    Write-Host "⚠  Ubuntu já instalado no WSL" -ForegroundColor Yellow
+    $needsReboot = $false
 } else {
     try { wsl --update *>$null } catch {}
 
