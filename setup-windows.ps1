@@ -113,7 +113,7 @@ Write-Host "  Vai instalar: WSL2, Ubuntu, Windows Terminal, fontes MesloLGS NF"
 Write-Host ""
 Read-Host "Aperta Enter pra começar (Ctrl+C pra cancelar)"
 
-$total = 7
+$total = 8
 
 # ============================================================
 # 1. Verificar virtualizacao
@@ -161,23 +161,23 @@ Write-Host "  Valor bruto: VirtualizationFirmwareEnabled = $virtEnabled" -Foregr
 Show-Verify '(Get-CimInstance Win32_Processor).VirtualizationFirmwareEnabled'
 
 # ============================================================
-# 2. Instalar WSL2 + Ubuntu
+# 2. Habilitar recursos do Windows pro WSL2
 # ============================================================
-Write-Step 2 $total "Instalando WSL2 + Ubuntu"
+Write-Step 2 $total "Habilitando recursos do Windows"
 
 $wslInstalled = $false
 try {
     $wslList = Get-WslDistroList
     if ($wslList -match "Ubuntu") {
         $wslInstalled = $true
-        Write-Host "⚠  Ubuntu já instalado no WSL" -ForegroundColor Yellow
     }
 } catch {}
 
-$wslInstallFailed = $false
 $rebootReasons = @()
 $blockingFailure = $false
-if (-not $wslInstalled) {
+if ($wslInstalled) {
+    Write-Host "⚠  Ubuntu já instalado — pulando checagem de recursos" -ForegroundColor Yellow
+} else {
     # Erro real visto em campo: "wsl --install" pode reportar sucesso sem
     # deixar o Microsoft-Windows-Subsystem-Linux DE VERDADE habilitado — o
     # sintoma só aparece depois, ao abrir a distro: "WslRegisterDistribution
@@ -250,36 +250,44 @@ if (-not $wslInstalled) {
             Write-Host "   Baixe manualmente se o problema persistir: https://aka.ms/wsl2kernel" -ForegroundColor Yellow
         }
     }
+}
+Show-Verify 'Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux,VirtualMachinePlatform,HypervisorPlatform'
 
-    if ($blockingFailure) {
-        # Reboot não resolve isso — é permissão/SKU, não estado pendente.
-        Write-Host "  Pulando a instalação da distro até isso ser resolvido manualmente." -ForegroundColor Yellow
-        $needsReboot = $false
-    } elseif ($rebootReasons.Count -gt 0) {
-        # Tentar instalar a distro agora daria o mesmo erro 0x8007019e de novo —
-        # nada do que foi habilitado/atualizado acima funciona antes do reboot.
-        Write-Host "  A instalação da distro só funciona depois do reboot — pulando por enquanto." -ForegroundColor Yellow
-        Write-Host "  Motivo: $($rebootReasons -join '; ')." -ForegroundColor DarkGray
+# ============================================================
+# 3. Instalar WSL2 + Ubuntu
+# ============================================================
+Write-Step 3 $total "Instalando WSL2 + Ubuntu"
+
+$wslInstallFailed = $false
+if ($wslInstalled) {
+    Write-Host "⚠  Ubuntu já instalado no WSL" -ForegroundColor Yellow
+    $needsReboot = $false
+} elseif ($blockingFailure) {
+    # Reboot não resolve isso — é permissão/SKU, não estado pendente.
+    Write-Host "  Pulando a instalação da distro até isso ser resolvido manualmente (veja etapa 2)." -ForegroundColor Yellow
+    $needsReboot = $false
+} elseif ($rebootReasons.Count -gt 0) {
+    # Tentar instalar a distro agora daria o mesmo erro 0x8007019e de novo —
+    # nada do que foi habilitado/atualizado na etapa 2 funciona antes do reboot.
+    Write-Host "  A instalação da distro só funciona depois do reboot — pulando por enquanto." -ForegroundColor Yellow
+    Write-Host "  Motivo: $($rebootReasons -join '; ')." -ForegroundColor DarkGray
+    $needsReboot = $true
+} else {
+    try { wsl --update *>$null } catch {}
+
+    Write-Host "Instalando WSL2 com Ubuntu — isso pode levar de 5 a 15 minutos," -ForegroundColor Cyan
+    Write-Host "dependendo da internet. Não feche esta janela, mesmo sem novidade na tela." -ForegroundColor Cyan
+    wsl --install -d Ubuntu
+    $installExitCode = $LASTEXITCODE
+    if ($installExitCode -ne 0) {
+        $wslInstallFailed = $true
+        Write-Host "✖  wsl --install terminou com erro (código $installExitCode) — a distro pode não ter sido registrada" -ForegroundColor Red
+        Write-Host "   Rode manualmente pra ver o motivo completo: wsl --install -d Ubuntu" -ForegroundColor Yellow
         $needsReboot = $true
     } else {
-        try { wsl --update *>$null } catch {}
-
-        Write-Host "Instalando WSL2 com Ubuntu — isso pode levar de 5 a 15 minutos," -ForegroundColor Cyan
-        Write-Host "dependendo da internet. Não feche esta janela, mesmo sem novidade na tela." -ForegroundColor Cyan
-        wsl --install -d Ubuntu
-        $installExitCode = $LASTEXITCODE
-        if ($installExitCode -ne 0) {
-            $wslInstallFailed = $true
-            Write-Host "✖  wsl --install terminou com erro (código $installExitCode) — a distro pode não ter sido registrada" -ForegroundColor Red
-            Write-Host "   Rode manualmente pra ver o motivo completo: wsl --install -d Ubuntu" -ForegroundColor Yellow
-            $needsReboot = $true
-        } else {
-            Write-Host "✔  Comando de instalação rodou sem erro" -ForegroundColor Green
-            $needsReboot = $false
-        }
+        Write-Host "✔  Comando de instalação rodou sem erro" -ForegroundColor Green
+        $needsReboot = $false
     }
-} else {
-    $needsReboot = $false
 }
 
 if (-not $needsReboot) {
@@ -291,9 +299,9 @@ if (-not $needsReboot) {
     wsl --status
     Get-WslDistroList
 } elseif ($blockingFailure) {
-    Write-Host "  ⚠  Resolva o aviso acima manualmente antes de continuar." -ForegroundColor Yellow
+    Write-Host "  ⚠  Resolva o aviso da etapa 2 manualmente antes de continuar." -ForegroundColor Yellow
 } elseif ($rebootReasons -and $rebootReasons.Count -gt 0) {
-    Write-Host "  Depois do reboot, o Windows termina de ativar o que foi preparado acima." -ForegroundColor DarkGray
+    Write-Host "  Depois do reboot, o Windows termina de ativar o que foi preparado na etapa 2." -ForegroundColor DarkGray
     Write-Host "  Só então rode 'wsl --install -d Ubuntu' (instrução no fim) pra registrar a distro." -ForegroundColor DarkGray
 } elseif ($wslInstallFailed) {
     Write-Host "  ⚠  O comando terminou com erro — rode de novo depois do reboot." -ForegroundColor Yellow
@@ -301,12 +309,12 @@ if (-not $needsReboot) {
     Write-Host "  (normal: numa máquina que nunca teve WSL, o registro da distro às vezes só" -ForegroundColor DarkGray
     Write-Host "   completa na SEGUNDA chamada de 'wsl --install -d Ubuntu', depois do reboot.)" -ForegroundColor DarkGray
 }
-Show-Verify 'wsl --status; wsl --list --quiet; Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux,VirtualMachinePlatform,HypervisorPlatform'
+Show-Verify 'wsl --status; wsl --list --quiet'
 
 # ============================================================
-# 3. Windows Terminal (via winget)
+# 4. Windows Terminal (via winget)
 # ============================================================
-Write-Step 3 $total "Verificando Windows Terminal"
+Write-Step 4 $total "Verificando Windows Terminal"
 
 $hasWinget = Get-Command winget -ErrorAction SilentlyContinue
 if ($hasWinget) {
@@ -346,9 +354,9 @@ if ($hasWinget) {
 Show-Verify 'winget list --id Microsoft.WindowsTerminal'
 
 # ============================================================
-# 4. Fontes MesloLGS NF
+# 5. Fontes MesloLGS NF
 # ============================================================
-Write-Step 4 $total "Instalando fontes MesloLGS NF"
+Write-Step 5 $total "Instalando fontes MesloLGS NF"
 
 $sysFontDir = "$env:SystemRoot\Fonts"
 $regPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"
@@ -401,9 +409,9 @@ Write-Host "  Arquivo encontrado: $(Test-Path "$sysFontDir\MesloLGS NF Regular.t
 Show-Verify 'Test-Path "$env:SystemRoot\Fonts\MesloLGS NF Regular.ttf"'
 
 # ============================================================
-# 5. Configurar fonte no Windows Terminal
+# 6. Configurar fonte no Windows Terminal
 # ============================================================
-Write-Step 5 $total "Configurando fonte no Windows Terminal"
+Write-Step 6 $total "Configurando fonte no Windows Terminal"
 
 $wtSettingsPaths = @(
     "$env:LOCALAPPDATA\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json",
@@ -454,9 +462,9 @@ if ($wtSettings) {
 }
 
 # ============================================================
-# 6. Baixar setup-wsl.sh pro WSL
+# 7. Baixar setup-wsl.sh pro WSL
 # ============================================================
-Write-Step 6 $total "Baixando script de setup pro WSL"
+Write-Step 7 $total "Baixando script de setup pro WSL"
 
 $repoBase = "https://raw.githubusercontent.com/CbBelmante/wsl-flowforge-setup/main"
 
@@ -484,9 +492,9 @@ if (-not $needsReboot) {
 }
 
 # ============================================================
-# 7. Instruções finais
+# 8. Instruções finais
 # ============================================================
-Write-Step 7 $total "Concluído!"
+Write-Step 8 $total "Concluído!"
 
 Write-Host ""
 Write-Host "  ██████╗  ██████╗ ███╗   ██╗███████╗██╗" -ForegroundColor Green
