@@ -312,6 +312,19 @@ else
   # shellcheck source=/dev/null
   . "$NVM_DIR/nvm.sh"
 fi
+# O instalador do nvm decide sozinho entre .bashrc/.zshrc olhando $SHELL —
+# mas nesse ponto do script $SHELL ainda mostra bash (o chsh da etapa 5 só
+# vale a partir do PRÓXIMO login), então ele grava no .bashrc, que o zsh
+# nunca lê. Resultado: nvm/node/npm/claude somem numa sessão zsh nova.
+# Garantimos explicitamente que o .zshrc também tenha essas linhas.
+if ! grep -qF 'NVM_DIR' "$HOME/.zshrc" 2>/dev/null; then
+  {
+    echo ''
+    echo '# --- nvm ---'
+    echo 'export NVM_DIR="$HOME/.nvm"'
+    echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"'
+  } >> "$HOME/.zshrc"
+fi
 if command -v node &>/dev/null; then
   warn "Node.js já instalado: $(node -v)"
 else
@@ -329,7 +342,8 @@ else
   fi
 fi
 echo "  node: $(node -v)  npm: $(npm -v)"
-verify "node -v; npm -v"
+echo "  $(grep -c 'NVM_DIR' "$HOME/.zshrc" 2>/dev/null || echo 0) linha(s) de nvm no .zshrc"
+verify "node -v; npm -v; grep NVM_DIR ~/.zshrc"
 
 # ============================================================
 # 13. Claude Code
@@ -355,9 +369,13 @@ banner "Instalando FlowForge"
 if command -v flowforge &>/dev/null; then
   warn "FlowForge já instalado: $(flowforge version 2>/dev/null || echo '?')"
 else
+  # Por padrão o instalador do FlowForge grava em /usr/local/bin, que exige
+  # sudo (e a gente não roda ele com sudo). Manda instalar em ~/.local/bin
+  # (já no PATH desde a etapa 9) pra não precisar de privilégio nenhum.
+  mkdir -p "$HOME/.local/bin"
   # O curl já tem timeout de download; o "timeout" externo cobre o instalador
   # em si, que pode fazer mais chamadas de rede depois de receber o script.
-  timeout 120 bash -c 'curl -fsSL --connect-timeout 10 --max-time 60 https://get.flowforgesoft.com/install.sh | sh'
+  FLOWFORGE_INSTALL_DIR="$HOME/.local/bin" timeout 120 bash -c 'curl -fsSL --connect-timeout 10 --max-time 60 https://get.flowforgesoft.com/install.sh | sh'
   hash -r
   if command -v flowforge &>/dev/null; then
     ok "FlowForge instalado"
