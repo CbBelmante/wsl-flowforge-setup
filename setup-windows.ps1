@@ -429,7 +429,9 @@ if (-not $needsReboot) {
     Write-Host "  Apos o reboot, o comando abaixo baixa e roda tudo automaticamente" -ForegroundColor White
 }
 if (-not $needsReboot) {
-    Show-Verify 'wsl -- test -f ~/setup-wsl.sh && echo OK'
+    # && solto quebra no Windows PowerShell 5.1 (só existe no PowerShell 7+) —
+    # por isso o && vai dentro de aspas, como argumento pro bash, não pro PowerShell.
+    Show-Verify 'wsl -- bash -c "test -f ~/setup-wsl.sh && echo OK"'
 }
 
 # ============================================================
