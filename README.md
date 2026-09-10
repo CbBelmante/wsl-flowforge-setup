@@ -29,7 +29,7 @@ Setup automatizado para montar um ambiente de desenvolvimento completo no Window
 ### 1. No Windows (PowerShell como Administrador)
 
 ```powershell
-irm https://raw.githubusercontent.com/CbBelmante/wsl-flowforge-setup/master/setup-windows.ps1 | iex
+irm https://raw.githubusercontent.com/CbBelmante/wsl-flowforge-setup/main/setup-windows.ps1 | iex
 ```
 
 > Instala WSL2 + Ubuntu, Windows Terminal, fontes e configura tudo automaticamente.
@@ -40,7 +40,7 @@ irm https://raw.githubusercontent.com/CbBelmante/wsl-flowforge-setup/master/setu
 Apos o reboot, abra **Ubuntu** no menu Iniciar (vai pedir pra criar usuario e senha na primeira vez).
 
 ```bash
-curl -sL https://raw.githubusercontent.com/CbBelmante/wsl-flowforge-setup/master/bootstrap.sh | bash
+curl -sL https://raw.githubusercontent.com/CbBelmante/wsl-flowforge-setup/main/bootstrap.sh | bash
 ```
 
 > Configura git, gera chave SSH, instala zsh + p10k + Node.js + Claude Code + FlowForge.
